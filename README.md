@@ -3,7 +3,6 @@
 ### Team Members:
 Ali Khalili  
 Alex Zhong  
-Shuo Wang  
 Vector Kai  
 Yi Chen  
 
