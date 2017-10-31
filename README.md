@@ -1,8 +1,9 @@
 # TrackMasters Team Submission - Udacity Self-Driving Car Nanodegree - Capston Project
 
 ### Team Members:
-Ali Khalili  
 Alex Zhong  
+Ali Khalili  
+Knut Sebastian Tungland  
 Vector Kai  
 Yi Chen  
 
