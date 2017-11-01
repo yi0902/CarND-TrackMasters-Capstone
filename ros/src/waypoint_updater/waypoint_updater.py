@@ -25,28 +25,52 @@ LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this n
 
 
 class WaypointUpdater(object):
+    
     def __init__(self):
+        
         rospy.init_node('waypoint_updater')
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
-
+        
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
+        self.current_position = None
+        self.base_waypoints = None
+        self.waypoints_to_pub = None
 
         rospy.spin()
 
     def pose_cb(self, msg):
         # TODO: Implement
-        pass
+        
+        # Set current position
+        self.current_position = msg.pose.position
+        #rospy.loginfo("Current car position: %f, %f, %f", self.current_position.x, self.current_position.y, self.current_position.z)
+        
+        # Get waypoints that are ahead of car position to waypoints_to_pub list
+        self.waypoints_to_pub = []
+        for wp in self.base_waypoints:
+        	wp_pos = wp.pose.pose.position
+        	#rospy.loginfo("Waypoint %d - position: %f, %f, %f", i, wp_pos.x, wp_pos.y, wp_pos.z)
+        	if wp_pos.x > self.current_position.x:
+        		self.waypoints_to_pub.append(wp)
+        		if len(self.waypoints_to_pub) >= LOOKAHEAD_WPS:
+        			break
+        #rospy.loginfo("Length of waypoints to publish: %d", len(self.waypoints_to_pub))
+
+        # Publish waypoints to final_waypoints topic
+        msg = Lane()
+        msg.waypoints = self.waypoints_to_pub
+        self.final_waypoints_pub.publish(msg)
 
     def waypoints_cb(self, waypoints):
         # TODO: Implement
-        pass
+        # Store base waypoints to a list as it's only published once
+        self.base_waypoints = waypoints.waypoints
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
