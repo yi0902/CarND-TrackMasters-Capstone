@@ -4,3 +4,7 @@ build
 devel
 
 profile.tmp
+
+# exclude visual studio code files and emacs backup files
+.vscode
+*~

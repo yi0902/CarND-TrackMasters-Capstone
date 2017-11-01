@@ -58,7 +58,7 @@ class DBWNode(object):
         # TODO: Create `Controller` object
         self.controller = Controller()
 
-        # TODO: Subscribe to all the topics you need to
+        # TODO: Subscribe to all the topics you need to 
         rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
