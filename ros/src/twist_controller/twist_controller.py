@@ -12,10 +12,11 @@ MIN_SPEED = 1.0 * ONE_MPH
 
 
 class Controller(object):
-    def __init__(self, vehicle_mass,fuel_capacity,brake_deadband,decel_limit,accel_limit,wheel_radius,wheel_base,steer_ratio,max_lat_accel,max_steer_angle):
+    def __init__(self, vehicle_mass,fuel_capacity,brake_deadband,accel_deadband,decel_limit,accel_limit,wheel_radius,wheel_base,steer_ratio,max_lat_accel,max_steer_angle):
         self.vehicle_mass = vehicle_mass
         self.fuel_capacity = fuel_capacity
         self.brake_deadband = brake_deadband
+        self.accel_deadband = accel_deadband
         self.decel_limit = decel_limit
         self.accel_limit = accel_limit
         self.wheel_radius = wheel_radius
@@ -50,10 +51,14 @@ class Controller(object):
         # acceleration
         if velocity_change > 0:
             throttle = self.throttle_lowpass(velocity_change)
+            throttle < throttle if throttle > self.accel_deadband else 0.0
 
         # brake
         else:
             brake = self.brake_lowpass(-velocity_change)
+            brake < brake if brake > self.brake_deadband else 0.0
+            
+
 
 
         # steering
