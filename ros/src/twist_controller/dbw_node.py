@@ -35,7 +35,9 @@ class DBWNode(object):
     
     def __init__(self):
     
-        rospy.init_node('dbw_node')
+        rospy.init_node('dbw_node',log_level=rospy.DEBUG)
+        rospy.logwarn("ENTER dbw_node")
+
 
         vehicle_mass = rospy.get_param('~vehicle_mass', 1736.35)
         fuel_capacity = rospy.get_param('~fuel_capacity', 13.5)
@@ -56,32 +58,42 @@ class DBWNode(object):
                                          BrakeCmd, queue_size=1)
 
         # TODO: Create `Controller` object
-        self.controller = Controller()
+        self.controller = Controller(vehicle_mass,fuel_capacity,brake_deadband,decel_limit,accel_limit,wheel_radius,wheel_base,steer_ratio,max_lat_accel,max_steer_angle)
 
         # TODO: Subscribe to all the topics you need to 
-        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
-        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb)
-        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb,queue_size=5)
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb,queue_size=5)
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb,queue_size=5)
 
         # TODO: Add other member variables you need below
-        self.dbw_enabled = True
+        self.dbw_enabled = False
+        self.proposed_angular = None
+        self.proposed_velocity = None
+        self.current_velocity = None
+        self.prev_time = None 
+
         
         self.loop()
 
-    def velocity_cb(self, msg):
-        # TODO
-        pass
+    def velocity_cb(self, msg): 
+        self.current_velocity = msg.twist.linear.x
+
 
     def twist_cmd_cb(self, msg):
-        # TODO
-        pass
+        self.proposed_velocity = msg.twist.linear.x
+        self.proposed_angular = msg.twist.angular.z
+
 
     def dbw_enabled_cb(self, msg):
         self.dbw_enabled = msg.data
+        rospy.loginfo("dbw_enabled %s", msg.data)
+
+
 
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
-        while not rospy.is_shutdown():
+        
+        while (not rospy.is_shutdown()): 
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
             # You should only publish the control commands if dbw is enabled
             # throttle, brake, steering = self.controller.control(<proposed linear velocity>,
@@ -89,13 +101,24 @@ class DBWNode(object):
             #                                                     <current linear velocity>,
             #                                                     <dbw status>,
             #                                                     <any other argument you need>)
-            throttle, brake, steer = self.controller.control()
-            if self.dbw_enabled:
-               self.publish(throttle, brake, steer)
+            if  self.proposed_angular and self.proposed_velocity and self.current_velocity:
+                
+                if self.dbw_enabled:
+                    # cheat prev_time the first time
+                    if not self.prev_time:
+                        self.prev_time = rospy.get_rostime()
+                    dt = rospy.get_rostime() - self.prev_time
+                    throttle, brake, steer = self.controller.control(self.proposed_velocity, self.proposed_angular,self.current_velocity,dt)
+                #                                                     <any other argument you need>))
+                    self.publish(throttle, brake, steer)
+                else:
+                    self.controller.reset()
             
             rate.sleep()
+        rospy.logwarn("LEAVING dbw_node loop")
 
     def publish(self, throttle, brake, steer):
+        rospy.logdebug('publish with values throttle=%s, steer=%s , brake=,%s',throttle,steer,brake)
         tcmd = ThrottleCmd()
         tcmd.enable = True
         tcmd.pedal_cmd_type = ThrottleCmd.CMD_PERCENT
@@ -115,4 +138,8 @@ class DBWNode(object):
 
 
 if __name__ == '__main__':
-    DBWNode()
+    
+    try:
+        DBWNode()
+    except rospy.ROSInterruptException:
+        rospy.logerr('Could not start DBW node.')
