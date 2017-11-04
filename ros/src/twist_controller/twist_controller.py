@@ -25,7 +25,7 @@ class Controller(object):
         self.max_steer_angle = max_steer_angle
         self.last_time = None
         self.steer_lowpass = LowPassFilter(0.96, 1.) # from https://discussions.udacity.com/t/solved-compute-cte-without-car-position/364383/8
-        self.throttle_lowpass = LowPassFilter(0.05, 0.01) # acceleration
+        self.throttle_lowpass = LowPassFilter(0.05, 0.01) # acceleration should do something intelligent with max accle&dec mass etc
         self.brake_lowpass = LowPassFilter(0.05, 0.01) # deccelaration
         self.yawController = YawController(wheel_base,steer_ratio, ONE_MPH, max_lat_accel, max_steer_angle)
 
@@ -41,8 +41,8 @@ class Controller(object):
     def control(self, proposed_velocity, proposed_angular,current_velocity,dt):
         # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
-        
-
+        msg = 'controller called with proposed_velocity={}, proposed_angular={}, current_velocity={}, dt={}'.format(proposed_velocity,proposed_angular,current_velocity,dt)        
+        print(msg)
         # velocity
         velocity_change = self.velocity_pid.step(proposed_velocity-current_velocity,dt)
         
@@ -50,20 +50,18 @@ class Controller(object):
         brake = 0
         # acceleration
         if velocity_change > 0:
-            throttle = self.throttle_lowpass(velocity_change)
+            throttle = self.throttle_lowpass.filt(velocity_change)
             throttle < throttle if throttle > self.accel_deadband else 0.0
 
         # brake
         else:
-            brake = self.brake_lowpass(-velocity_change)
+            brake = self.brake_lowpass.filt(-velocity_change)
             brake < brake if brake > self.brake_deadband else 0.0
             
 
-
-
         # steering
         steer = self.yawController.get_steering(proposed_velocity, proposed_angular, current_velocity)
-        steer = self.steer_lowpass.filt(steer)
+        #steer = self.steer_lowpass.filt(steer)
 
         self.last_time = time.time()
         return throttle, brake, steer
