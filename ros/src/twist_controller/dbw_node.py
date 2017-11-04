@@ -95,7 +95,7 @@ class DBWNode(object):
 
 
     def loop(self):
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(40) # 50Hz
         
         while (not rospy.is_shutdown()): 
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
@@ -105,7 +105,8 @@ class DBWNode(object):
             #                                                     <current linear velocity>,
             #                                                     <dbw status>,
             #                                                     <any other argument you need>)
-            rospy.logdebug('loop with values proposed_angular=%s, proposed_velocity=%s , current_velocity=,%s',self.proposed_angular,self.proposed_velocity,self.current_velocity)
+            msg = 'loop with values proposed_angular={}, proposed_velocity={}, current_velocity={}, dbw_enabled={}'.format(self.proposed_angular,self.proposed_velocity,self.current_velocity,self.dbw_enabled)
+            rospy.logdebug(msg)
             if  self.proposed_angular and self.proposed_velocity and self.current_velocity:
                 
                 if self.dbw_enabled:
