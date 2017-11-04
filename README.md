@@ -4,7 +4,7 @@
 Alex Zhong  
 Ali Khalili  
 Knut Sebastian Tungland  
-Vector Kai  
+Victor Kai  
 Yi Chen  
 
 
