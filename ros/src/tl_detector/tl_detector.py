@@ -10,6 +10,7 @@ from light_classification.tl_classifier import TLClassifier
 import tf
 import cv2
 import yaml
+import math
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -54,8 +55,8 @@ class TLDetector(object):
     def pose_cb(self, msg):
         self.pose = msg
 
-    def waypoints_cb(self, waypoints):
-        self.waypoints = waypoints
+    def waypoints_cb(self, msg):
+        self.waypoints = msg.waypoints
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
@@ -100,8 +101,20 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        #TODO implement
-        return 0
+        closest_wp_index = 0
+        closest_wp_dist = 100000.0
+        
+        for i in range(len(self.waypoints)):
+            x1 = pose.position.x
+            y1 = pose.position.y
+            x2 = self.waypoints[i].pose.pose.position.x
+            y2 = self.waypoints[i].pose.pose.position.y
+            dist = math.hypot(x1 - x2, y1 - y2)
+            if dist < closest_wp_dist:
+                closest_wp_dist = dist
+                closest_wp_index = i
+
+        return closest_wp_index
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -131,18 +144,26 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        light = None
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
         if(self.pose):
-            car_position = self.get_closest_waypoint(self.pose.pose)
+            car_wp_index = self.get_closest_waypoint(self.pose.pose)
 
-        #TODO find the closest visible traffic light (if one exists)
+        light = None
+        light_wp_index = 0
+        for l in self.lights:
+            light_wp_index = self.get_closest_waypoint(l.pose.pose)
+            index_diff = light_wp_index - car_wp_index
+            # TODO: index_diff represents the distance between the light wp and car wp, this value needs to be tuned to determine 'visibility' of traffic light
+            # light is ahead of car and within a visible distance
+            if index_diff > 0 and index_diff <= 500:
+                light = l
+                break
 
         if light:
             state = self.get_light_state(light)
-            return light_wp, state
+            return light_wp_index, state
         self.waypoints = None
         return -1, TrafficLight.UNKNOWN
 
