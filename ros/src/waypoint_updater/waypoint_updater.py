@@ -195,7 +195,7 @@ def newton_solve(f, df, s, bound, tolerance=0.0001):
         x1 = x0 - (f(x0)-s)/df(x0)
         dx = x0 - x1
         x0 = x1
-    ruturn x0
+    return x0
 
 if __name__ == '__main__':
     try:
