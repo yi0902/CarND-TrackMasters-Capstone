@@ -4,6 +4,8 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
 
+from std_msgs.msg import Int32
+
 import math
 
 '''
@@ -35,12 +37,19 @@ class WaypointUpdater(object):
         
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
 
+        # Subscriber for /traffic_waypoint
+        # assuming msg type is Int64
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
         self.current_position = None
         self.base_waypoints = None
         self.waypoints_to_pub = None
+
+        # Add a member variable to store the starting index of final waypoints
+        self.starting_index_of_final_wps = None
 
         rospy.spin()
 
@@ -74,7 +83,14 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+        stopline_index = msg
+        # If there is a red light in the final waypoints list
+        if stopline_index >= self.starting_index_of_final_wps and stopline_index < self.starting_index_of_final_wps + LOOKAHEAD_WPS:
+            # Choose a deceleration mode depending on the distance between current position and stopline
+            # Set target velocity starting from the stopline
+            # Publish final waypoints
+            print(stopline_index)
+        rospy.loginfo("Adjusted velocities for a red light at index %d", stopline_index)
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
