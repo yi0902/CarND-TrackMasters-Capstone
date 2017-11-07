@@ -50,8 +50,8 @@ class WaypointUpdater(object):
         self.base_waypoints = None
         self.waypoints_to_pub = None
 
-        # Add a member variable to store the starting index of final waypoints
-        self.starting_index_of_final_wps = None
+        # Add a member variable to store index of next waypoints
+        self.next_wps_id = None
 
         rospy.spin()
 
@@ -85,32 +85,53 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
-        stopline_index = msg
+        # Get stopline index stop_id
+        stop_id = msg
         # If there is a red light in the final waypoints list
-        if stopline_index >= self.starting_index_of_final_wps and stopline_index < self.starting_index_of_final_wps + LOOKAHEAD_WPS:
+        id_diff = stop_id - self.next_wps_id
+        if id_diff >= 0 and id_diff < LOOKAHEAD_WPS:
             # Choose a deceleration mode depending on the distance between current position and stopline
-            d = self.distance(self.waypoints_to_pub, 0, stopline_index-self.starting_index_of_final_wps)
-            rospy.loginfo("Distance till red light: %f", d)
-            starting_v = self.get_waypoint_velocity(0)
+            # Calculate distance till next red light
+            total_dist = self.distance(self.base_waypoints, self.next_wps_id, stop_id)
+            rospy.loginfo("Distance till red light: %f", total_dist)
+            starting_v = self.get_waypoint_velocity(self.base_waypoints[self.next_wps_id])
             rospy.loginfo("Starting velocity: %f", starting_v)
-            avg_decel = starting_v**2/(2.*d)
-            rospy.loginfo("Estimated average deceleration: %f", avg_decel)
-            decel_max = 1
-            decel = min(avg_decel*1.5, decel_max)
-            # Set target velocity on base_waypoints starting from the stopline
-            decel_scale = [.01, .04, .09, .16, .25, .36, .49, .64, .81]
-            decel_sequence = decel*decel_scale
+
+            # Estimate average deceleration
+            #avg_decel = starting_v**2/(2.*total_dist)
+            #rospy.loginfo("Estimated average deceleration: %f", avg_decel)
+
+            # Estimate how much time it will take to decelerate
+            T_est = 2*total_dist / starting_v
+            T = T_est * .9
+            # Generate a trajectory
+            start = [0., starting_v, 0.]
+            end = [total_dist, 0., 0.]
+            alphas = JMT(start, end, T)
+            # Test this is actually a good trajectory
+            # Good trajectory            
+            # Get distance and velocity formula
+            fn_s = get_fn_s(alphas)
+            fn_v = get_fn_v(alphas)
+            # Set target velocity to each waypoint
+            d = 0.
+            for wps_id in range(self.next_wps_id+1, stop_id):
+                d += self.distance(self.base_waypoints, wps_id-1, wps_id)
+                t = newton_solve(fn_s, fn_v, d, T)
+                target_v = fn_v(t)
+                self.set_waypoint_velocity(self.base_waypoints, wps_id, target_v)
+
             # Set velocity at the stop line at 0.
-            self.set_waypoint_velocity(self.base_waypoints, stopline_index, 0.)
-            v1 = 0.
-            wp1 = stopline_index
-            for i, a in enumerate(decel_sequence):
-                wp2 = stopline_index - (i+1)
-                #v2 = math.sqrt(v1**2 + 2*a*)
-            self.base_waypoints
+            self.set_waypoint_velocity(self.base_waypoints, stop_id, 0.)
+            # Set target velocity for waypoints after red light stop line
+            # Not sure this needs to be implemented
+
             # Publish final waypoints
-            print(stopline_index)
-        rospy.loginfo("Adjusted velocities for a red light at index %d", stopline_index)
+            self.waypoints_to_pub = self.base_waypoints[self.next_wps_id:self.next_wps_id+LOOKAHEAD_WPS]
+            msg = Lane()
+            msg.waypoints = self.waypoints_to_pub
+            self.final_waypoints_pub.publish(msg)
+            rospy.loginfo("Adjusted velocities for a red light at index %d", stop_id)
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
@@ -175,12 +196,6 @@ def newton_solve(f, df, s, bound, tolerance=0.0001):
         dx = x0 - x1
         x0 = x1
     ruturn x0
-
-def sample_points():
-    pass
-
-def fn_interp1d():
-    pass
 
 if __name__ == '__main__':
     try:
