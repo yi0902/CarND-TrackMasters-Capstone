@@ -5,6 +5,7 @@ from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
 
 import math
+import tf
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -30,47 +31,87 @@ class WaypointUpdater(object):
         
         rospy.init_node('waypoint_updater')
 
-        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
-        self.current_position = None
+        self.current_pose = None
         self.base_waypoints = None
-        self.waypoints_to_pub = None
+        self.waypoints_to_pub = None # store the index of waypoints to publish
+        self.closest_wp_index = 0 # index of the closest waypoint ahead of the car
 
         rospy.spin()
 
     def pose_cb(self, msg):
         # TODO: Implement
         
-        # Set current position
-        self.current_position = msg.pose.position
-        #rospy.loginfo("Current car position: %f, %f, %f", self.current_position.x, self.current_position.y, self.current_position.z)
-        
-        # Get waypoints that are ahead of car position to waypoints_to_pub list
-        self.waypoints_to_pub = []
-        for wp in self.base_waypoints:
-        	wp_pos = wp.pose.pose.position
-        	#rospy.loginfo("Waypoint %d - position: %f, %f, %f", i, wp_pos.x, wp_pos.y, wp_pos.z)
-        	if wp_pos.x > self.current_position.x:
-        		self.waypoints_to_pub.append(wp)
-        		if len(self.waypoints_to_pub) >= LOOKAHEAD_WPS:
-        			break
-        #rospy.loginfo("Length of waypoints to publish: %d", len(self.waypoints_to_pub))
+        # Set current pose
+        self.current_pose = msg.pose
 
+        # Get closest waypoint that is ahead of the car
+        self.closest_wp_index = self.get_closest_waypoint(self.current_pose)
+        #rospy.loginfo('car x=%s, y=%s, closest wp_x=%s, y=%s',
+        #    self.current_pose.position.x, self.current_pose.position.y,
+        #    self.base_waypoints[self.closest_wp_index].pose.pose.position.x,
+        #    self.base_waypoints[self.closest_wp_index].pose.pose.position.y)
+                    
+        # Get indexes of waypoints that are ahead of car position to waypoints_to_pub list
+        self.waypoints_to_pub = []
+        for i in range(0, LOOKAHEAD_WPS):
+            self.waypoints_to_pub.append(self.closest_wp_index + i)
+        
         # Publish waypoints to final_waypoints topic
         msg = Lane()
-        msg.waypoints = self.waypoints_to_pub
+        msg.waypoints = [self.base_waypoints[index] for index in self.waypoints_to_pub]
         self.final_waypoints_pub.publish(msg)
 
-    def waypoints_cb(self, waypoints):
+    def get_closest_waypoint(self, pose):
+        closest_wp_index = 0
+        closest_wp_dist = 100000
+        
+        # car's position
+        x_car = pose.position.x
+        y_car = pose.position.y
+
+        if self.base_waypoints != None:
+            for i in range(len(self.base_waypoints)):
+                # current waypoint's position
+                x_wp = self.base_waypoints[i].pose.pose.position.x
+                y_wp = self.base_waypoints[i].pose.pose.position.y
+                # compute distance
+                dist = math.hypot(x_car - x_wp, y_car - y_wp)
+                # compare and set
+                if dist < closest_wp_dist:
+                    closest_wp_dist = dist
+                    closest_wp_index = i
+
+            # get car's current orientation
+            yaw = self.yaw_from_quaternion(self.current_pose)
+            # get car's heading if going to the closest waypoint
+            closest_wp = self.base_waypoints[closest_wp_index]
+            heading = math.atan2(closest_wp.pose.pose.position.y - y_car, 
+                closest_wp.pose.pose.position.x - x_car) # btw (-pi, pi)
+            if heading < 0:
+                heading = heading + 2*math.pi; # set to btw (0, 2pi) as yaw is btw (0, 2pi)
+            # get difference on heading, if diff is bigger than pi/4, take the next waypoint
+            diff_heading = abs(yaw - heading)
+            if diff_heading > math.pi/4:
+                closest_wp_index = closest_wp_index + 1
+        
+        return closest_wp_index
+
+    def yaw_from_quaternion(self, pose):
+        return tf.transformations.euler_from_quaternion((pose.orientation.x, 
+            pose.orientation.y, pose.orientation.z, pose.orientation.w))[2]
+
+    def waypoints_cb(self, msg):
         # TODO: Implement
         # Store base waypoints to a list as it's only published once
-        self.base_waypoints = waypoints.waypoints
+        self.base_waypoints = msg.waypoints
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
