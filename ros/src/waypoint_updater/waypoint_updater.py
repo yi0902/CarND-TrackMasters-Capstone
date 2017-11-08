@@ -42,7 +42,7 @@ class WaypointUpdater(object):
         self.current_pose = None
         self.base_waypoints = None
         self.waypoints_to_pub = None # store the index of waypoints to publish
-        self.closest_wp_index = 0 # index of the closest waypoint ahead of the car
+        self.next_wp_index = 0 # index of the closest waypoint ahead of the car
 
         rospy.spin()
 
@@ -52,24 +52,24 @@ class WaypointUpdater(object):
         # Set current pose
         self.current_pose = msg.pose
 
-        # Get closest waypoint that is ahead of the car
-        self.closest_wp_index = self.get_closest_waypoint(self.current_pose)
-        #rospy.loginfo('car x=%s, y=%s, closest wp_x=%s, y=%s',
+        # Get next closest waypoint that is ahead of the car
+        self.next_wp_index = self.get_next_waypoint(self.current_pose)
+        #rospy.loginfo('car x=%s, y=%s, next wp_x=%s, y=%s',
         #    self.current_pose.position.x, self.current_pose.position.y,
-        #    self.base_waypoints[self.closest_wp_index].pose.pose.position.x,
-        #    self.base_waypoints[self.closest_wp_index].pose.pose.position.y)
+        #    self.base_waypoints[self.next_wp_index].pose.pose.position.x,
+        #    self.base_waypoints[self.next_wp_index].pose.pose.position.y)
                     
         # Get indexes of waypoints that are ahead of car position to waypoints_to_pub list
         self.waypoints_to_pub = []
         for i in range(0, LOOKAHEAD_WPS):
-            self.waypoints_to_pub.append(self.closest_wp_index + i)
+            self.waypoints_to_pub.append(self.next_wp_index + i)
         
         # Publish waypoints to final_waypoints topic
         msg = Lane()
         msg.waypoints = [self.base_waypoints[index] for index in self.waypoints_to_pub]
         self.final_waypoints_pub.publish(msg)
 
-    def get_closest_waypoint(self, pose):
+    def get_next_waypoint(self, pose):
         closest_wp_index = 0
         closest_wp_dist = 100000
         
