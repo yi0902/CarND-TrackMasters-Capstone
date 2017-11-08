@@ -67,7 +67,7 @@ class DBWNode(object):
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb,queue_size=1)
 
         # TODO: Add other member variables you need below
-        self.dbw_enabled = False
+        self.dbw_enabled = True
         self.proposed_angular = None
         self.proposed_velocity = None
         self.current_velocity = 0.
