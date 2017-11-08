@@ -50,6 +50,9 @@ class WaypointUpdater(object):
         self.base_waypoints = None
         self.waypoints_to_pub = None
 
+        # Get maximum speed in m/s
+        self.max_velocity = rospy.get_param('/waypoint_loader/velocity')*1000./3600.
+
         # Add a member variable to store index of next waypoints
         self.next_wps_id = None
 
@@ -118,7 +121,7 @@ class WaypointUpdater(object):
             for wps_id in range(self.next_wps_id+1, stop_id):
                 d += self.distance(self.base_waypoints, wps_id-1, wps_id)
                 t = newton_solve(fn_s, fn_v, d, T)
-                target_v = fn_v(t)
+                target_v = min(fn_v(t), self.max_velocity)
                 self.set_waypoint_velocity(self.base_waypoints, wps_id, target_v)
 
             # Set velocity at the stop line at 0.
