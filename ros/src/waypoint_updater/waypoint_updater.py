@@ -74,7 +74,7 @@ class WaypointUpdater(object):
         #    self.base_waypoints[self.next_wp_index].pose.pose.position.y)
                     
         # Get indexes of waypoints that are ahead of car position to waypoints_to_pub list
-        self.waypoints_to_pub = [self.base_waypoints[self.next_wp_index:self.next_wp_index+LOOKAHEAD_WPS]]
+        self.waypoints_to_pub = self.base_waypoints[self.next_wp_index:self.next_wp_index+LOOKAHEAD_WPS]
         #for i in range(0, LOOKAHEAD_WPS):
         #    self.waypoints_to_pub.append(self.next_wp_index + i)
         
