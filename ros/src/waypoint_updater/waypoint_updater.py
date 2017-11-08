@@ -130,7 +130,7 @@ class WaypointUpdater(object):
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
         # Get stopline index stop_id
-        stop_id = msg
+        stop_id = msg.data
         # If there is a red light in the final waypoints list
         id_diff = stop_id - self.next_wp_index
         if id_diff >= 0 and id_diff < LOOKAHEAD_WPS:
