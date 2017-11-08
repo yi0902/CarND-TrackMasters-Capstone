@@ -93,7 +93,6 @@ class WaypointUpdater(object):
         # If there is a red light in the final waypoints list
         id_diff = stop_id - self.next_wps_id
         if id_diff >= 0 and id_diff < LOOKAHEAD_WPS:
-            # Choose a deceleration mode depending on the distance between current position and stopline
             # Calculate distance till next red light
             total_dist = self.distance(self.base_waypoints, self.next_wps_id, stop_id)
             rospy.loginfo("Distance till red light: %f", total_dist)
@@ -106,6 +105,7 @@ class WaypointUpdater(object):
 
             # Estimate how much time it will take to decelerate
             T_est = 2*total_dist / starting_v
+            # Force vehicle to stop a little bit faster
             T = T_est * .9
             # Generate a trajectory
             start = [0., starting_v, 0.]
@@ -116,7 +116,7 @@ class WaypointUpdater(object):
             # Get distance and velocity formula
             fn_s = get_fn_s(alphas)
             fn_v = get_fn_v(alphas)
-            # Set target velocity to each waypoint
+            # Set target velocity for each waypoint till stop line
             d = 0.
             for wps_id in range(self.next_wps_id+1, stop_id):
                 d += self.distance(self.base_waypoints, wps_id-1, wps_id)
@@ -134,7 +134,8 @@ class WaypointUpdater(object):
             msg = Lane()
             msg.waypoints = self.waypoints_to_pub
             self.final_waypoints_pub.publish(msg)
-            rospy.loginfo("Adjusted velocities for a red light at index %d", stop_id)
+            rospy.loginfo("Successfully adjusted velocities for a red light at index %d", stop_id)
+        rospy.loginfo("Red light at index %d not in lookahead range", stop_id)
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
@@ -157,6 +158,7 @@ class WaypointUpdater(object):
 def JMT(start, end, T):
     """
     Calculate jerk minimizing trajectory for start, end, and T
+    Return coefficients
     """
     a0, a1, a2 = start[0], start[1], start[2]/2.0
     c0 = a0 + a1*T + a2*T**2
@@ -179,6 +181,9 @@ def JMT(start, end, T):
     return alphas
 
 def get_fn_s(alphas):
+    """
+    Return polynomials of distance travelled
+    """
     def fn_s(t):
         #a0, a1, a2, a3, a4, a5 = alphas
         ts = np.array([1, t, t**2, t**3, t**4, t**5])
@@ -186,12 +191,18 @@ def get_fn_s(alphas):
     return fn_s
 
 def get_fn_v(alphas):
+    """
+    Return polynomials of velocity
+    """
     def fn_v(t):
         a0, a1, a2, a3, a4, a5 = alphas
         return a1 + 2*a2*t + 3*a3*t**2 + 4*a4*t**3 + 5*a5*t**4
     return fn_v
 
 def newton_solve(f, df, s, bound, tolerance=0.0001):
+    """
+    Using Newton method to solve x for f(x) = s
+    """
     x0 = bound/2.0
     dx = x0
     while abs(dx) > tolerance:
