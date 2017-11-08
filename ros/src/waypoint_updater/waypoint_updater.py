@@ -56,7 +56,7 @@ class WaypointUpdater(object):
         self.max_velocity = rospy.get_param('/waypoint_loader/velocity')*1000./3600.
 
         # Add a member variable to store index of next waypoints
-        self.next_wps_id = None
+        #self.next_wp_index = None
 
         rospy.spin()
 
@@ -74,13 +74,13 @@ class WaypointUpdater(object):
         #    self.base_waypoints[self.next_wp_index].pose.pose.position.y)
                     
         # Get indexes of waypoints that are ahead of car position to waypoints_to_pub list
-        self.waypoints_to_pub = []
-        for i in range(0, LOOKAHEAD_WPS):
-            self.waypoints_to_pub.append(self.next_wp_index + i)
+        self.waypoints_to_pub = [self.base_waypoints[self.next_wp_index:self.next_wp_index+LOOKAHEAD_WPS]]
+        #for i in range(0, LOOKAHEAD_WPS):
+        #    self.waypoints_to_pub.append(self.next_wp_index + i)
         
         # Publish waypoints to final_waypoints topic
         msg = Lane()
-        msg.waypoints = [self.base_waypoints[index] for index in self.waypoints_to_pub]
+        msg.waypoints = self.waypoints_to_pub
         self.final_waypoints_pub.publish(msg)
 
     def get_next_waypoint(self, pose):
@@ -132,12 +132,12 @@ class WaypointUpdater(object):
         # Get stopline index stop_id
         stop_id = msg
         # If there is a red light in the final waypoints list
-        id_diff = stop_id - self.next_wps_id
+        id_diff = stop_id - self.next_wp_index
         if id_diff >= 0 and id_diff < LOOKAHEAD_WPS:
             # Calculate distance till next red light
-            total_dist = self.distance(self.base_waypoints, self.next_wps_id, stop_id)
+            total_dist = self.distance(self.base_waypoints, self.next_wp_index, stop_id)
             rospy.loginfo("Distance till red light: %f", total_dist)
-            starting_v = self.get_waypoint_velocity(self.base_waypoints[self.next_wps_id])
+            starting_v = self.get_waypoint_velocity(self.base_waypoints[self.next_wp_index])
             rospy.loginfo("Starting velocity: %f", starting_v)
 
             # Estimate average deceleration
@@ -159,7 +159,7 @@ class WaypointUpdater(object):
             fn_v = get_fn_v(alphas)
             # Set target velocity for each waypoint till stop line
             d = 0.
-            for wps_id in range(self.next_wps_id+1, stop_id):
+            for wps_id in range(self.next_wp_index+1, stop_id):
                 d += self.distance(self.base_waypoints, wps_id-1, wps_id)
                 t = newton_solve(fn_s, fn_v, d, T)
                 target_v = min(fn_v(t), self.max_velocity)
@@ -171,7 +171,7 @@ class WaypointUpdater(object):
             # Not sure this needs to be implemented
 
             # Publish final waypoints
-            self.waypoints_to_pub = self.base_waypoints[self.next_wps_id:self.next_wps_id+LOOKAHEAD_WPS]
+            self.waypoints_to_pub = self.base_waypoints[self.next_wp_index:self.next_wp_index+LOOKAHEAD_WPS]
             msg = Lane()
             msg.waypoints = self.waypoints_to_pub
             self.final_waypoints_pub.publish(msg)
