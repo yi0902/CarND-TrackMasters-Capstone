@@ -61,9 +61,12 @@ class Controller(object):
 
         # steering
         steer = self.yawController.get_steering(proposed_velocity, proposed_angular, current_velocity)
-        #steer = self.steer_lowpass.filt(steer)
+        steer = self.steer_lowpass.filt(steer)
 
         self.last_time = time.time()
+
+        msg = 'controller calclated throttle={}, brake={}, steer={}'.format(throttle,brake,steer)        
+        print(msg)
         return throttle, brake, steer
 
 
