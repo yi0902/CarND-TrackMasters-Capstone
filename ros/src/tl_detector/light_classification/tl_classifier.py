@@ -7,7 +7,7 @@ import numpy as np
 class TLClassifier(object):
     def __init__(self):
         
-        self._work_dir = './'
+        self._work_dir ='./light_classification/'
         self._model_name = 'model_light'
         
         # load the model
