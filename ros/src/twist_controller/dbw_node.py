@@ -35,7 +35,7 @@ class DBWNode(object):
     
     def __init__(self):
     
-        rospy.init_node('dbw_node',log_level=rospy.INFO)  # rospy.DEBUG
+        rospy.init_node('dbw_node',log_level=rospy.DEBUG)  # rospy.DEBUG
         rospy.logdebug("ENTER dbw_node")
 
 
