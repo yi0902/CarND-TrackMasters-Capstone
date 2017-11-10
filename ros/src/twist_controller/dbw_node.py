@@ -114,6 +114,8 @@ class DBWNode(object):
                         self.prev_time = rospy.get_rostime()
                     dt = rospy.get_rostime() - self.prev_time
                     rospy.logdebug('\tdt=%s',dt)
+                    # set previous timestamp to current time after calculating dt
+                    self.prev_time = rospy.get_rostime()
                     throttle, brake, steer = self.controller.control(self.proposed_velocity, self.proposed_angular,self.current_velocity,dt.to_sec())
                 #                                                     <any other argument you need>))
                     rospy.logdebug('\tcontroller with values throttle=%s, steer=%s , brake=,%s',throttle,steer,brake)
