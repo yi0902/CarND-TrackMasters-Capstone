@@ -18,6 +18,10 @@ class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
 
+        # AK debug
+        #self.counter = 0
+        #self.test_img_dir = './test_imgs/'
+
         self.pose = None
         self.waypoints = []
         self.camera_image = None
@@ -130,7 +134,12 @@ class TLDetector(object):
             self.prev_light_loc = None
             return False
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
+        
+        # AK debug
+        #print(cv_image.shape)
+        #cv2.imwrite(self.test_img_dir+str(self.counter)+'.png', cv_image)
+        #self.counter += 1
 
         #Get classification
         return self.light_classifier.get_classification(cv_image)
@@ -167,6 +176,7 @@ class TLDetector(object):
             return light_wp_index, state
         self.waypoints = []
         return -1, TrafficLight.UNKNOWN
+
 
 if __name__ == '__main__':
     try:

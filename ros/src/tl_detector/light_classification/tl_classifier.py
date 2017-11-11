@@ -3,6 +3,7 @@ from keras.models import model_from_json
 import json
 from keras.optimizers import Adam
 import numpy as np
+import tensorflow as tf
 
 class TLClassifier(object):
     def __init__(self):
@@ -14,13 +15,15 @@ class TLClassifier(object):
         with open(self._work_dir+self._model_name+'.json', 'r') as jfile:
           json_str = json.loads(jfile.read())
           self._model = model_from_json(json_str)
-        
+    
         #use default hyper parameters when creating new network
         Adam_Optimizer = Adam(lr=0.00001)
         self.model.compile(optimizer=Adam_Optimizer, loss='categorical_crossentropy', metrics=['accuracy']) 
         
         # load weights
         self.model.load_weights(self._work_dir+self._model_name+'.h5')
+
+        self.graph = tf.get_default_graph()
         
         pass
     
@@ -106,7 +109,10 @@ class TLClassifier(object):
             img_box = image[y1:y2, x1:x2, :]
             img_windows.append(self.normalize(img_box))
         img_windows = np.asarray(img_windows)
-        predictions = self.model.predict(img_windows)
+
+        with self.graph.as_default():
+        	predictions = self.model.predict(img_windows)
+
         pred_indexes = [np.argmax(x) for x in predictions]
         unique, counts = np.unique(pred_indexes, return_counts=True)
         final_prediction = unique[np.argmax(counts)]
