@@ -158,7 +158,7 @@ class TLDetector(object):
             index_diff = light_wp_index - car_wp_index
             # TODO: index_diff represents the distance between the light wp and car wp, this value needs to be tuned to determine 'visibility' of traffic light
             # light is ahead of car and within a visible distance
-            if index_diff > 0 and index_diff < 200:
+            if index_diff > 0: #and index_diff < 200:
                 light = l
                 break
 
