@@ -35,7 +35,7 @@ class Controller(object):
         kp = 1. # 1.5
         ki = 0.01 # 0.001
         kd = 0.001 # 0.
-        self.velocity_pid = PID(kp, ki, kd,decel_limit,accel_limit)
+        self.velocity_pid = PID(kp, ki, kd, decel_limit, accel_limit)
         
 
     def control(self, proposed_velocity, proposed_angular,current_velocity,dt):
