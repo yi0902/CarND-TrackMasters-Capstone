@@ -32,10 +32,10 @@ class Controller(object):
 
 
         # TODO: how do I implement twiddle_
-        kp = 1. # 1.5
+        kp = 1.5 # 1.5 1.0
         ki = 0.01 # 0.001
-        kd = 0.001 # 0.
-        self.velocity_pid = PID(kp, ki, kd, decel_limit, accel_limit)
+        kd = 0.01 # 0. 0.0.001
+        self.velocity_pid = PID(kp, ki, kd,decel_limit,accel_limit)
         
 
     def control(self, proposed_velocity, proposed_angular,current_velocity,dt):
@@ -51,12 +51,13 @@ class Controller(object):
         # acceleration
         if velocity_change > 0:
             throttle = self.throttle_lowpass.filt(velocity_change)
-            throttle < throttle if throttle > self.accel_deadband else 0.0
+            throttle = throttle if throttle > self.accel_deadband else 0.0
 
         # brake
         else:
             brake = self.brake_lowpass.filt(-velocity_change)
-            brake < brake if brake > self.brake_deadband else 0.0
+            brake = brake * (self.vehicle_mass + self.fuel_capacity * GAS_DENSITY) * self.wheel_radius
+            brake = brake if brake > self.brake_deadband else 0.0
             
 
         # steering
