@@ -11,16 +11,20 @@ import tf
 import cv2
 import yaml
 import math
+import scipy
+import time
 
 STATE_COUNT_THRESHOLD = 3
+
 
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
 
-        # AK debug
+        # AK debug:
         #self.counter = 0
-        #self.test_img_dir = './test_imgs/'
+        #self.test_img_dir = './test_imgs/'#'/home/student/Desktop/shared/'
+        #
 
         self.pose = None
         self.waypoints = []
@@ -56,14 +60,20 @@ class TLDetector(object):
 
         rospy.spin()
 
+
     def pose_cb(self, msg):
         self.pose = msg
+
 
     def waypoints_cb(self, msg):
         self.waypoints = msg.waypoints
 
+
     def traffic_cb(self, msg):
         self.lights = msg.lights
+        #print('here in traffic_cb')
+        #print(msg)
+
 
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
@@ -95,6 +105,7 @@ class TLDetector(object):
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
 
+
     def get_closest_waypoint(self, pose):
         """Identifies the closest path waypoint to the given position
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
@@ -120,6 +131,7 @@ class TLDetector(object):
 
         return closest_wp_index
 
+
     def get_light_state(self, light):
         """Determines the current color of the traffic light
 
@@ -137,12 +149,85 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
         
         # AK debug
-        #print(cv_image.shape)
-        #cv2.imwrite(self.test_img_dir+str(self.counter)+'.png', cv_image)
+        #scipy.misc.imsave(self.test_img_dir+'{:04d}'.format(self.counter)+'.png', cv_image)
         #self.counter += 1
 
         #Get classification
-        return self.light_classifier.get_classification(cv_image)
+        distance = self.distance_to_light(light)
+        if distance < 200:
+            # light could be visible in the camera image
+            cc = self.crop_window(light, cv_image.shape)
+            cropped_img = cv_image[cc[0][0]:cc[1][0],cc[0][1]:cc[1][1],:]
+            
+            # TODO: 
+            # once crop_window is implemented properly, pass the properly cropped and resized image to the classifier
+            pred =  self.light_classifier.get_classification(cv_image)
+            return pred
+        else:
+            # light is not visible in the camera image
+            pred = TrafficLight.UNKNOWN
+
+
+
+    def print_all_lights(self, light):
+    	'''
+    	AK: for debugging purposes. 
+    	write the position of the car and all traffic lights to a text file
+    	'''
+    	f = open(self.test_img_dir+'{:04d}'.format(self.counter)+'.txt','w')
+
+    	if (self.pose):
+    		car_wp_index = self.get_closest_waypoint(self.pose.pose)
+    		x = self.pose.pose.position.x
+    		y = self.pose.pose.position.y
+    		z = self.pose.pose.position.z
+    		other_z = self.pose.pose.orientation.z
+    		w = self.pose.pose.orientation.w
+    		f.write('car_waypoint: {}, x: {}, y: {}, z: {}, other_z: {}, w: {}, '.format(car_wp_index, x, y, z, other_z, w))
+    	for l in self.lights:
+    		light_wp_index = self.get_closest_waypoint(l.pose.pose)
+    		x = l.pose.pose.position.x
+    		y = l.pose.pose.position.y
+    		z = l.pose.pose.position.z
+    		state = l.state
+    		f.write('light_waypoint: {}, state: {}, x: {}, y: {}, z:{}, '.format(light_wp_index, state, x, y, z))
+    	l_wp = self.get_closest_waypoint(light.pose.pose)
+    	l_x = light.pose.pose.position.x
+    	l_y = light.pose.pose.position.y
+    	l_z = light.pose.pose.position.z
+    	l_state = light.state
+    	f.write('l_wp: {}, l_x: {}, l_y: {}, l_z: {}, state: {}'.format(l_wp, l_x, l_y, l_z, l_state))
+
+    	f.close()
+
+    
+    def distance_to_light(self, light):
+        if (self.pose):
+            l_x = light.pose.pose.position.x
+            l_y = light.pose.pose.position.y
+            car_x = self.pose.pose.position.x
+            car_y = self.pose.pose.position.y
+            distance = ((l_x-car_x)**2+(l_y-car_y)**2)**0.5
+            return distance
+        else:
+            return 1000
+
+
+    def crop_window(self, light, img_shape):
+        '''
+        TODO: This is a placeholder only.
+        properly identify the crop window around the next traffic lisght 
+        '''
+        if (self.pose):
+            d = self.distance_to_light(light)
+            start_x = int(round(1e-5*(d**3)-0.0086*(d**2)+2.2212*(d)+381.62))
+            start_x = max(start_x, 0)
+            end_x = int(round(1e-5*(d**3)-0.0067*(d**2)+1.4585*(d)+492.27))
+            end_x = min(end_x, img_shape[0])
+            return ((start_x, 0), (end_x, img_shape[1]))
+        else:
+            return ((0, 64), (0, 64))
+
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -163,17 +248,18 @@ class TLDetector(object):
         light = None
         light_wp_index = 0
         for l in self.lights:
-            light_wp_index = self.get_closest_waypoint(l.pose.pose)
-            index_diff = light_wp_index - car_wp_index
+        	light_wp_index = self.get_closest_waypoint(l.pose.pose)
+        	index_diff = light_wp_index - car_wp_index
             # TODO: index_diff represents the distance between the light wp and car wp, this value needs to be tuned to determine 'visibility' of traffic light
             # light is ahead of car and within a visible distance
-            if index_diff > 0: #and index_diff < 200:
-                light = l
-                break
+        	if index_diff > 0: #and index_diff < 200:
+        		light = l
+        		break
 
         if light:
-            state = self.get_light_state(light)
-            return light_wp_index, state
+        	state = self.get_light_state(light)
+        	return light_wp_index, state
+            
         self.waypoints = []
         return -1, TrafficLight.UNKNOWN
 
