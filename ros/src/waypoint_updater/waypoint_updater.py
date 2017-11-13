@@ -58,6 +58,9 @@ class WaypointUpdater(object):
         # Add a member variable to store index of next waypoints
         #self.next_wp_index = None
 
+	self.last_redlight_id = None
+	self.traffic_cb_count = 0
+
         rospy.spin()
 
     def pose_cb(self, msg):
@@ -131,9 +134,13 @@ class WaypointUpdater(object):
         # TODO: Callback for /traffic_waypoint message. Implement
         # Get stopline index stop_id
         stop_id = msg.data
+	if (stop_id != self.last_redlight_id):
+		self.last_redlight_id = stop_id
+		self.traffic_cb_count = 0
+	self.traffic_cb_count += 1 
         # If there is a red light in the final waypoints list
         id_diff = stop_id - self.next_wp_index
-        if id_diff >= 0 and id_diff < LOOKAHEAD_WPS:
+        if id_diff >= 0 and id_diff < LOOKAHEAD_WPS and (self.traffic_cb_count % 5 == 1):
             # Calculate distance till next red light
             total_dist = self.distance(self.base_waypoints, self.next_wp_index, stop_id)
             rospy.loginfo("Distance till red light: %f", total_dist)
@@ -162,7 +169,8 @@ class WaypointUpdater(object):
             for wps_id in range(self.next_wp_index+1, stop_id):
                 d += self.distance(self.base_waypoints, wps_id-1, wps_id)
                 t = newton_solve(fn_s, fn_v, d, T)
-                target_v = min(fn_v(t), self.max_velocity)
+		# Make sure target velocity is between 0 and max_velocity
+                target_v = max(0., min(fn_v(t), self.max_velocity))
                 self.set_waypoint_velocity(self.base_waypoints, wps_id, target_v)
 
             # Set velocity at the stop line at 0.
