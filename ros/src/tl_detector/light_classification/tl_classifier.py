@@ -111,7 +111,7 @@ class TLClassifier(object):
     def interpret_pred(self, predictions):
     	pred_indexes = [np.argmax(x) for x in predictions]
         unique, counts = np.unique(pred_indexes, return_counts=True)
-        final_prediction = unique[np.argmax(counts)]
+        final_prediction = unique[np.argmax(counts[:3])]
 
         return final_prediction
 
