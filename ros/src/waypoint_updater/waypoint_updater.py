@@ -58,6 +58,9 @@ class WaypointUpdater(object):
         # Add a member variable to store index of next waypoints
         #self.next_wp_index = None
 
+        self.last_redlight_id = None
+        self.deceleration_set = False
+
         rospy.spin()
 
     def pose_cb(self, msg):
@@ -131,9 +134,12 @@ class WaypointUpdater(object):
         # TODO: Callback for /traffic_waypoint message. Implement
         # Get stopline index stop_id
         stop_id = msg.data
+        if (stop_id != self.last_redlight_id):
+            self.last_redlight_id = stop_id
+            self.deceleration_set = False
         # If there is a red light in the final waypoints list
         id_diff = stop_id - self.next_wp_index
-        if id_diff >= 0 and id_diff < LOOKAHEAD_WPS:
+        if id_diff >= 0 and id_diff < LOOKAHEAD_WPS and not self.deceleration_set:
             # Calculate distance till next red light
             total_dist = self.distance(self.base_waypoints, self.next_wp_index, stop_id)
             rospy.loginfo("Distance till red light: %f", total_dist)
@@ -145,7 +151,10 @@ class WaypointUpdater(object):
             #rospy.loginfo("Estimated average deceleration: %f", avg_decel)
 
             # Estimate how much time it will take to decelerate
-            T_est = 2*total_dist / starting_v
+            if (abs(starting_v) < 0.00001):
+                T_est = 2*total_dist / 0.00001
+            else:
+                T_est = 2*total_dist / starting_v
             # Force vehicle to stop a little bit faster
             T = T_est * .9
             # Generate a trajectory
@@ -162,11 +171,13 @@ class WaypointUpdater(object):
             for wps_id in range(self.next_wp_index+1, stop_id):
                 d += self.distance(self.base_waypoints, wps_id-1, wps_id)
                 t = newton_solve(fn_s, fn_v, d, T)
-                target_v = min(fn_v(t), self.max_velocity)
+		# Make sure target velocity is between 0 and max_velocity
+                target_v = max(0., min(fn_v(t), self.max_velocity))
                 self.set_waypoint_velocity(self.base_waypoints, wps_id, target_v)
 
             # Set velocity at the stop line at 0.
             self.set_waypoint_velocity(self.base_waypoints, stop_id, 0.)
+            self.deceleration_set = True
             # Set target velocity for waypoints after red light stop line
             # Not sure this needs to be implemented
 
