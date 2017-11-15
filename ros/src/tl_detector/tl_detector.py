@@ -246,21 +246,24 @@ class TLDetector(object):
             car_wp_index = self.get_closest_waypoint(self.pose.pose)
 
         light = None
-        light_wp_index = 0
-        for l in self.lights:
-        	light_wp_index = self.get_closest_waypoint(l.pose.pose)
-        	index_diff = light_wp_index - car_wp_index
-            # TODO: index_diff represents the distance between the light wp and car wp, this value needs to be tuned to determine 'visibility' of traffic light
-            # light is ahead of car and within a visible distance
-        	if index_diff > 0: #and index_diff < 200:
-        		light = l
-        		break
+        stop_line_wp_index = 0
+        for i in range(len(stop_line_positions)):
+            pose = Pose()
+            pose.position.x = stop_line_positions[i][0]
+            pose.position.y = stop_line_positions[i][1]
+            stop_line_wp_index = self.get_closest_waypoint(pose)
+            index_diff = stop_line_wp_index - car_wp_index
+            #rospy.loginfo("LightID: %d = StopLine WP: %d, Car WP: %d", i, stop_line_wp_index, car_wp_index)
+            # light is ahead of car
+            if index_diff > 0:# and index_diff < 200:
+                light = self.lights[i]
+                #rospy.loginfo("Breaking at LightID: %d, WP: %d", i, self.get_closest_waypoint(light.pose.pose))
+                break
 
         if light:
-        	state = self.get_light_state(light)
-        	return light_wp_index, state
-            
-        self.waypoints = []
+            state = self.get_light_state(light)
+            return stop_line_wp_index, state
+        #self.waypoints = []
         return -1, TrafficLight.UNKNOWN
 
 
