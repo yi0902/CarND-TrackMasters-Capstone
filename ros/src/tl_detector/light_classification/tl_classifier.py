@@ -2,11 +2,15 @@ from styx_msgs.msg import TrafficLight
 from keras.models import model_from_json
 import json
 from keras.optimizers import Adam
+from keras import backend as K
 import numpy as np
+import tensorflow as tf
+import time
+
 
 class TLClassifier(object):
     def __init__(self):
-        
+
         self._work_dir ='./light_classification/'
         self._model_name = 'model_light'
         
@@ -14,13 +18,16 @@ class TLClassifier(object):
         with open(self._work_dir+self._model_name+'.json', 'r') as jfile:
           json_str = json.loads(jfile.read())
           self._model = model_from_json(json_str)
-        
+    
         #use default hyper parameters when creating new network
         Adam_Optimizer = Adam(lr=0.00001)
         self.model.compile(optimizer=Adam_Optimizer, loss='categorical_crossentropy', metrics=['accuracy']) 
         
         # load weights
         self.model.load_weights(self._work_dir+self._model_name+'.h5')
+
+        # compile forward pass
+        self.fp = K.function([self.model.layers[0].input, K.learning_phase()], [self.model.layers[-1].output])
         
         pass
     
@@ -85,6 +92,30 @@ class TLClassifier(object):
         return norm_img
     
 
+    def slide_imgs(self, image):
+    	windows = self.slide_window(image.shape)
+
+    	img_windows = []
+        for window in windows:
+            x1 = window[0][0]
+            y1 = window[0][1]
+            x2 = window[1][0]
+            y2 = window[1][1]
+            img_box = image[y1:y2, x1:x2, :]
+            img_windows.append(self.normalize(img_box))
+        img_windows = np.asarray(img_windows)
+
+        return img_windows
+
+
+    def interpret_pred(self, predictions):
+    	pred_indexes = [np.argmax(x) for x in predictions]
+        unique, counts = np.unique(pred_indexes, return_counts=True)
+        final_prediction = unique[np.argmax(counts[:3])]
+
+        return final_prediction
+
+
     def get_classification(self, image):
         """
         Determines the color of the traffic light in the image
@@ -96,21 +127,18 @@ class TLClassifier(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        windows = self.slide_window(image.shape)
-        img_windows = []
-        for window in windows:
-            x1 = window[0][0]
-            y1 = window[0][1]
-            x2 = window[1][0]
-            y2 = window[1][1]
-            img_box = image[y1:y2, x1:x2, :]
-            img_windows.append(self.normalize(img_box))
-        img_windows = np.asarray(img_windows)
-        predictions = self.model.predict(img_windows)
-        pred_indexes = [np.argmax(x) for x in predictions]
-        unique, counts = np.unique(pred_indexes, return_counts=True)
-        final_prediction = unique[np.argmax(counts)]
         
+    	# obtain sliding images 64x64x3
+      	img_windows = self.slide_imgs(image)
+        
+        # make predictions
+        t0 = time.time()
+    	predictions = self.fp([img_windows, 0])[0]
+
+    	# interpret prediction results
+        final_prediction = self.interpret_pred(predictions)
+        
+       
         if final_prediction == 0:
             return TrafficLight.GREEN
         elif final_prediction == 1:

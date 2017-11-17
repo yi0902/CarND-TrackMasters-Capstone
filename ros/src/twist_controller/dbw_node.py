@@ -35,7 +35,7 @@ class DBWNode(object):
     
     def __init__(self):
     
-        rospy.init_node('dbw_node',log_level=rospy.INFO)  # rospy.DEBUG
+        rospy.init_node('dbw_node',log_level=rospy.DEBUG)  # rospy.DEBUG rospy.INFO
         rospy.logdebug("ENTER dbw_node")
 
 
@@ -67,7 +67,7 @@ class DBWNode(object):
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb,queue_size=1)
 
         # TODO: Add other member variables you need below
-        self.dbw_enabled = True
+        self.dbw_enabled = False
         self.proposed_angular = None
         self.proposed_velocity = None
         self.current_velocity = 0.
@@ -95,7 +95,7 @@ class DBWNode(object):
 
 
     def loop(self):
-        rate = rospy.Rate(20) # 50Hz
+        rate = rospy.Rate(50) # 50Hz
         
         while (not rospy.is_shutdown()): 
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
@@ -113,7 +113,10 @@ class DBWNode(object):
                     if not self.prev_time:
                         self.prev_time = rospy.get_rostime()
                     dt = rospy.get_rostime() - self.prev_time
+                    self.prev_time = rospy.get_rostime()
                     rospy.logdebug('\tdt=%s',dt)
+                    # set previous timestamp to current time after calculating dt
+                    self.prev_time = rospy.get_rostime()
                     throttle, brake, steer = self.controller.control(self.proposed_velocity, self.proposed_angular,self.current_velocity,dt.to_sec())
                 #                                                     <any other argument you need>))
                     rospy.logdebug('\tcontroller with values throttle=%s, steer=%s , brake=,%s',throttle,steer,brake)
