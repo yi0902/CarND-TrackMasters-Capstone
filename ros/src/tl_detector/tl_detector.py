@@ -232,8 +232,8 @@ class TLDetector(object):
             return cv_image[:height//2, :, :]
         else:
             y_est, h_est = int(self.y_estimator(1./distance)), int(self.height_estimator(1./distance))
-            y_min = min(height, max(0, y - int(h_est*.8)))
-            y_max = min(height, max(0, y + int(h_est*1.3)))
+            y_min = min(height, max(0, y_est - int(h_est*.8)))
+            y_max = min(height, max(0, y_est + int(h_est*1.3)))
             sliced_img = cv_image[y_min:y_max, :, :]
             delta_y = y_max - y_min
             scale = 2 if delta_y < 128 else 1
@@ -273,7 +273,10 @@ class TLDetector(object):
                 break
 
         if light:
+            #Debug, to see how much time the classifie took to process one image
+            #t0 = time.time()
             state = self.get_light_state(light)
+            #rospy.loginfo("Light detection took {:.2f}s".format(time.time()-t0))
             return stop_line_wp_index, state
         #self.waypoints = []
         return -1, TrafficLight.UNKNOWN

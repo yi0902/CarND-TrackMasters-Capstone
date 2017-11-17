@@ -143,13 +143,14 @@ class WaypointUpdater(object):
             # Change to no red light
             self.last_stop_id = stop_id
             self.acceleration_set = False
+            rospy.loginfo("No red light ahead, ready to accelerate")
         if stop_id < 0:
             # Get no stop_id
             starting_v = self.get_waypoint_velocity(self.base_waypoints[self.next_wp_index])
             # Set acceleration trajectory when if there's no red light ahead
             if self.max_velocity - starting_v > 0.1 and not self.acceleration_set:
                 avg_accel = 2.
-                fn_s, fn_v, T = generate_acceleration_trajectory(0., self.max_velocity, avg_accel)
+                fn_s, fn_v, T = self.generate_acceleration_trajectory(0., self.max_velocity, avg_accel)
                 wps_id = self.next_wp_index
                 d = 0.
                 while wps_id <= self.base_waypoints[-1]:
@@ -173,7 +174,7 @@ class WaypointUpdater(object):
                 starting_v = self.get_waypoint_velocity(self.base_waypoints[self.next_wp_index])
                 rospy.loginfo("Starting velocity: %f", starting_v)
 
-                fn_s, fn_v, T = generate_fullstop_trajectory(starting_v, d)
+                fn_s, fn_v, T = self.generate_fullstop_trajectory(starting_v, total_dist)
 
                 # Set target velocity for each waypoint till stop line
                 d = 0.
@@ -189,7 +190,7 @@ class WaypointUpdater(object):
 
                 # Set acceleration trajectory after stop line
                 avg_accel = 2.
-                fn_s, fn_v, T = generate_acceleration_trajectory(0., self.max_velocity, avg_accel)
+                fn_s, fn_v, T = self.generate_acceleration_trajectory(0., self.max_velocity, avg_accel)
                 wps_id = stop_id + 1
                 d = 0.
                 while wps_id <= self.base_waypoints[-1]:
@@ -211,7 +212,7 @@ class WaypointUpdater(object):
 
     def generate_acceleration_trajectory(self, start_v, end_v, avg_accel):
         dist_est = abs((end_v**2-start_v**2)/2/avg_accel)
-        T_est = abs((start_v-endv)/avg_accel)
+        T_est = abs((start_v-end_v)/avg_accel)
         d = 2 * dist_est
         T = 2 * T_est
         start = [0., start_v, 0.]
@@ -222,11 +223,16 @@ class WaypointUpdater(object):
         return fn_s, fn_v, T
 
     def generate_fullstop_trajectory(self, start_v, d):
+        decel_est = start_v**2 / (2 * d)
+        rospy.loginfo("Estimated average deceleration: {}".format(decel_est))
         if (abs(start_v) < 0.00001):
             T_est = 2 * d / 0.00001
         else:
             T_est = 2 * d / start_v
-        T = T_est * .9
+        # Force the car to stop faster
+        T = T_est * .8
+        decel_forced = start_v / T
+        rospy.loginfo("Forced average deceleration: {}".format(decel_forced))
         start = [0., start_v, 0.]
         end = [d, 0., 0.]
         alphas = JMT(start, end, T)
