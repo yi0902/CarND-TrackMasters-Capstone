@@ -12,7 +12,7 @@ class TLClassifier(object):
     def __init__(self):
 
         self._work_dir ='./light_classification/'
-        self._model_name = 'model_sim'
+        self._model_name = 'model-sim'
         
         # load the model
         with open(self._work_dir+self._model_name+'.json', 'r') as jfile:
