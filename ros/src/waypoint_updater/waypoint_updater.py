@@ -183,7 +183,10 @@ class WaypointUpdater(object):
                     d += self.distance(self.base_waypoints, wps_id-1, wps_id)
                     t = newton_solve(fn_s, fn_v, d, T)
                     # Make sure target velocity is between 0 and max_velocity
-                    target_v = max(0., min(fn_v(t), self.max_velocity)) * (((stop_id-wps_id)/(stop_id-self.next_wp_index-1))**0.001)
+                    red_factor = ((stop_id*1.0-wps_id)/(stop_id-self.next_wp_index-1))**1.7
+                    target_v = max(0., min(fn_v(t), self.max_velocity)) * red_factor
+                    if target_v < 1.5:
+                        target_v = 0
                     self.set_waypoint_velocity(self.base_waypoints, wps_id, target_v)
 
                 # Set velocity at the stop line to 0.

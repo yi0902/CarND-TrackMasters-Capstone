@@ -162,7 +162,7 @@ class TLDetector(object):
         
         #Get classification
         distance = self.distance_to_light(light)
-        if distance < 80:
+        if distance < 60:
             # light could be visible in the camera image
             cropped_img = self.crop_window(distance, cv_image)
             #cropped_img = cv_image[cc[0][0]:cc[1][0],cc[0][1]:cc[1][1],:]
