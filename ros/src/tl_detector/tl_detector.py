@@ -25,8 +25,9 @@ class TLDetector(object):
         rospy.init_node('tl_detector')
 
         # AK debug:
-        #self.counter = 0
-        #self.test_img_dir = './test_imgs/'#'/home/student/Desktop/shared/'
+        self.save_images_for_debugging = False
+        self.counter = 0
+        self.test_img_dir = './test_imgs/'#'/home/student/Desktop/shared/'
         #
 
         self.pose = None
@@ -94,6 +95,8 @@ class TLDetector(object):
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
 
+        # AK rospy.loginfo('light-waypoint: {}, state: {}'.format(light_wp, state))
+
         '''
         Publish upcoming red lights at camera frequency.
         Each predicted state has to occur `STATE_COUNT_THRESHOLD` number
@@ -157,20 +160,25 @@ class TLDetector(object):
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
         
-        # AK debug
-        #scipy.misc.imsave(self.test_img_dir+'{:04d}'.format(self.counter)+'.png', cv_image)
-        #self.counter += 1
-
         #Get classification
         distance = self.distance_to_light(light)
-        if distance < 200:
+        if distance < 80:
             # light could be visible in the camera image
             cropped_img = self.crop_window(distance, cv_image)
             #cropped_img = cv_image[cc[0][0]:cc[1][0],cc[0][1]:cc[1][1],:]
             
             # TODO: 
             # once crop_window is implemented properly, pass the properly cropped and resized image to the classifier
+            actual_pred = light.state
             pred =  self.light_classifier.get_classification(cropped_img)
+            
+            # AK debug
+            if self.save_images_for_debugging:
+                scipy.misc.imsave(self.test_img_dir+'{:04d}-{}-{:.0f}'.format(self.counter,pred,distance)+'.png', cropped_img)
+                self.counter += 1
+
+
+
             return pred
         else:
             # light is not visible in the camera image
@@ -232,11 +240,12 @@ class TLDetector(object):
             return cv_image[:height//2, :, :]
         else:
             y_est, h_est = int(self.y_estimator(1./distance)), int(self.height_estimator(1./distance))
-            y_min = min(height, max(0, y_est - int(h_est*.8)))
-            y_max = min(height, max(0, y_est + int(h_est*1.3)))
+            y_min = min(height, max(0, y_est - int(h_est*.8))*0.9)
+            y_max = min(height, max(0, y_est + int(h_est*1.3))*1.1)
             sliced_img = cv_image[y_min:y_max, :, :]
             delta_y = y_max - y_min
-            scale = 2 if delta_y < 128 else 1
+            # scale = 2 if delta_y < 128 else 1
+            scale =1 
             ratio = 1.*width/delta_y
             resized_img = imresize(sliced_img, (64*scale, int(64*ratio*scale)), "nearest")
             return resized_img

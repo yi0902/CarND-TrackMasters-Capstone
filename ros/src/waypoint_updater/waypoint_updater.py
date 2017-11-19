@@ -134,6 +134,7 @@ class WaypointUpdater(object):
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
         stop_id = msg.data
+        # AK rospy.loginfo('stop_id: {} - last_stop_id: {}'.format(stop_id, self.last_stop_id))
         if (stop_id > self.last_stop_id):
             # Change to red light
             self.last_stop_id = stop_id
@@ -178,15 +179,15 @@ class WaypointUpdater(object):
 
                 # Set target velocity for each waypoint till stop line
                 d = 0.
-                for wps_id in range(self.next_wp_index+1, stop_id):
+                for wps_id in range(self.next_wp_index+1, stop_id): 
                     d += self.distance(self.base_waypoints, wps_id-1, wps_id)
                     t = newton_solve(fn_s, fn_v, d, T)
                     # Make sure target velocity is between 0 and max_velocity
-                    target_v = max(0., min(fn_v(t), self.max_velocity))
+                    target_v = max(0., min(fn_v(t), self.max_velocity)) * (((stop_id-wps_id)/(stop_id-self.next_wp_index-1))**0.001)
                     self.set_waypoint_velocity(self.base_waypoints, wps_id, target_v)
 
                 # Set velocity at the stop line to 0.
-                self.set_waypoint_velocity(self.base_waypoints, stop_id, 0.)
+                self.set_waypoint_velocity(self.base_waypoints, stop_id, 0.) 
 
                 # Set acceleration trajectory after stop line
                 avg_accel = 2.
