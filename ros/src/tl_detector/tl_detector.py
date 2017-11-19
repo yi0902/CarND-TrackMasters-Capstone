@@ -240,8 +240,8 @@ class TLDetector(object):
             return cv_image[:height//2, :, :]
         else:
             y_est, h_est = int(self.y_estimator(1./distance)), int(self.height_estimator(1./distance))
-            y_min = min(height, max(0, y_est - int(h_est*.8))*0.9)
-            y_max = min(height, max(0, y_est + int(h_est*1.3))*1.1)
+            y_min = int(min(height, max(0, y_est - int(h_est*.8))*0.9))
+            y_max = int(min(height, max(0, y_est + int(h_est*1.3))*1.1))
             sliced_img = cv_image[y_min:y_max, :, :]
             delta_y = y_max - y_min
             # scale = 2 if delta_y < 128 else 1
