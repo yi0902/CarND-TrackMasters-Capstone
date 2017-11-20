@@ -119,8 +119,8 @@ class WaypointUpdater(object):
             diff_heading = abs(yaw - heading)
             if diff_heading > math.pi/4:
                 closest_wp_index = closest_wp_index + 1
-        
-        return closest_wp_index
+        # Fix bug closest_wp_index out of index
+        return closest_wp_index % len(self.base_waypoints)
 
     def yaw_from_quaternion(self, pose):
         return tf.transformations.euler_from_quaternion((pose.orientation.x, 
@@ -217,8 +217,8 @@ class WaypointUpdater(object):
     def generate_acceleration_trajectory(self, start_v, end_v, avg_accel):
         dist_est = abs((end_v**2-start_v**2)/2/avg_accel)
         T_est = abs((start_v-end_v)/avg_accel)
-        d = 2 * dist_est
-        T = 2 * T_est
+        d = 1 * dist_est
+        T = 1 * T_est
         start = [0., start_v, 0.]
         end = [d, end_v, 0.]
         alphas = JMT(start, end, T)
@@ -234,7 +234,7 @@ class WaypointUpdater(object):
         else:
             T_est = 2 * d / start_v
         # Force the car to stop faster
-        T = T_est * .8
+        T = T_est * 1.
         decel_forced = start_v / T
         rospy.loginfo("Forced average deceleration: {}".format(decel_forced))
         start = [0., start_v, 0.]
