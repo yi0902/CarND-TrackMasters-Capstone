@@ -67,7 +67,7 @@ class Controller(object):
         # Add case for stopping at red light
         if abs(proposed_velocity) < 0.001:
             throttle = 0.
-            brake = .1
+            brake = 400.0 #.1
         #    steer = 0.
 
         self.last_time = time.time()
